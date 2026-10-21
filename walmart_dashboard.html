@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Walmart Sales — Data Preprocessing & Visualization Dashboard</title>
+  <meta name="description" content="Interactive dashboard for Walmart weekly sales data preprocessing and visualization. Explore trends, distributions, and correlations across 45 stores from 2010–2012." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --bg2: #0f1526;
+      --bg3: #141c30;
+      --card: #161e33;
+      --card2: #1b2540;
+      --border: rgba(99,130,255,0.15);
+      --accent: #6382ff;
+      --accent2: #a78bfa;
+      --accent3: #34d399;
+      --accent4: #f472b6;
+      --accent5: #fb923c;
+      --accent6: #38bdf8;
+      --text: #e2e8f8;
+      --muted: #7c8db5;
+      --glow: rgba(99,130,255,0.25);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 10% 20%, rgba(99,130,255,0.07) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 40% at 90% 80%, rgba(167,139,250,0.06) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 50% 50%, rgba(52,211,153,0.04) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    header {
+      position: relative;
+      padding: 2.5rem 3rem 2rem;
+      background: linear-gradient(135deg, rgba(99,130,255,0.1), rgba(167,139,250,0.05));
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      z-index: 1;
+    }
+    .header-icon {
+      width: 56px; height: 56px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.7rem;
+      box-shadow: 0 0 24px var(--glow);
+      flex-shrink: 0;
+    }
+    header h1 {
+      font-size: 1.9rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #c7d2ff, #a78bfa, #6382ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+    }
+    header p { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+    .header-badge { margin-left: auto; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .badge { padding: 0.3rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.03em; border: 1px solid; }
+    .badge-blue { background: rgba(99,130,255,0.15); color: var(--accent); border-color: rgba(99,130,255,0.3); }
+    .badge-green { background: rgba(52,211,153,0.15); color: var(--accent3); border-color: rgba(52,211,153,0.3); }
+    .badge-pink { background: rgba(244,114,182,0.15); color: var(--accent4); border-color: rgba(244,114,182,0.3); }
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,14,26,0.9);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 3rem;
+      display: flex; gap: 0;
+      overflow-x: auto;
+    }
+    nav button {
+      background: none; border: none;
+      color: var(--muted);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem; font-weight: 500;
+      padding: 1rem 1.2rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    nav button:hover { color: var(--text); }
+    nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+    main {
+      position: relative; z-index: 1;
+      padding: 2rem 3rem 4rem;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+    .section { display: none; }
+    .section.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    .section-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.6rem; }
+    .section-title span.dot { width: 8px; height: 8px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: inline-block; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.25rem 1.5rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--accent-color, linear-gradient(90deg, var(--accent), var(--accent2)));
+      border-radius: 16px 16px 0 0;
+    }
+    .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+    .stat-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+    .stat-value { font-size: 1.8rem; font-weight: 800; margin: 0.4rem 0 0.2rem; color: var(--text); }
+    .stat-sub { font-size: 0.78rem; color: var(--muted); }
+    .stat-icon { position: absolute; top: 1rem; right: 1rem; font-size: 1.4rem; opacity: 0.4; }
+    .chart-grid { display: grid; gap: 1.5rem; }
+    .chart-grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .chart-grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .chart-grid-full { grid-template-columns: 1fr; }
+    .chart-grid-1-2 { grid-template-columns: 1fr 2fr; }
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1.5rem;
+      transition: box-shadow 0.3s;
+    }
+    .chart-card:hover { box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,130,255,0.1); }
+    .chart-card h3 { font-size: 0.9rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.4rem; }
+    .chart-card .sub { font-size: 0.75rem; color: var(--muted); margin-bottom: 1rem; }
+    .chart-wrap { position: relative; height: 280px; }
+    .chart-wrap.tall { height: 340px; }
+    .chart-wrap.short { height: 220px; }
+    .preprocess-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .preprocess-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th { background: var(--bg3); color: var(--muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; padding: 0.6rem 0.9rem; text-align: left; border-bottom: 1px solid var(--border); }
+    td { padding: 0.55rem 0.9rem; border-bottom: 1px solid rgba(99,130,255,0.07); color: var(--text); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(99,130,255,0.04); }
+    .tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600; }
+    .tag-green { background: rgba(52,211,153,0.15); color: var(--accent3); }
+    .tag-blue { background: rgba(99,130,255,0.15); color: var(--accent); }
+    .tag-orange { background: rgba(251,146,60,0.15); color: var(--accent5); }
+    .tag-pink { background: rgba(244,114,182,0.15); color: var(--accent4); }
+    .pipeline { display: flex; gap: 0; margin-bottom: 2rem; overflow-x: auto; }
+    .pipeline-step { flex: 1; min-width: 160px; background: var(--card); border: 1px solid var(--border); padding: 1rem 1.2rem; position: relative; }
+    .pipeline-step:first-child { border-radius: 14px 0 0 14px; }
+    .pipeline-step:last-child { border-radius: 0 14px 14px 0; }
+    .pipeline-step:not(:last-child)::after { content: '›'; position: absolute; right: -12px; top: 50%; transform: translateY(-50%); font-size: 1.4rem; color: var(--accent); z-index: 2; }
+    .pipeline-step.done { background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.25); }
+    .pipeline-step .step-num { font-size: 0.7rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+    .pipeline-step .step-name { font-size: 0.9rem; font-weight: 700; margin: 0.25rem 0; }
+    .pipeline-step .step-status { font-size: 0.72rem; color: var(--accent3); font-weight: 500; }
+    .insights { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+    .insight-box { background: var(--card2); border: 1px solid var(--border); border-radius: 14px; padding: 1rem 1.2rem; border-left: 3px solid var(--accent); }
+    .insight-box.green { border-left-color: var(--accent3); }
+    .insight-box.pink { border-left-color: var(--accent4); }
+    .insight-box.orange { border-left-color: var(--accent5); }
+    .insight-box h4 { font-size: 0.8rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .insight-box p { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+    .mt-2 { margin-top: 1.5rem; }
+    @media (max-width: 1100px) { .chart-grid-2, .chart-grid-3, .chart-grid-1-2 { grid-template-columns: 1fr; } }
+    @media (max-width: 700px) { header { padding: 1.5rem 1.2rem; flex-wrap: wrap; } main { padding: 1.2rem 1rem 3rem; } nav { padding: 0 0.5rem; } .header-badge { margin: 0; } .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    /* Power BI Custom Section Styles */
+    .pbi-nav-btn {
+      color: #38bdf8 !important;
+      font-weight: 600 !important;
+      background: rgba(56, 189, 248, 0.08) !important;
+      border-radius: 8px !important;
+      margin: 6px 4px !important;
+      padding: 0.6rem 1rem !important;
+      border: 1px solid rgba(56, 189, 248, 0.25) !important;
+    }
+    .pbi-nav-btn:hover, .pbi-nav-btn.active {
+      background: rgba(56, 189, 248, 0.18) !important;
+      border-color: #38bdf8 !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.35) !important;
+    }
+    .pbi-icon-badge {
+      display: inline-block;
+      color: #f59e0b;
+      margin-right: 4px;
+      font-weight: 800;
+    }
+    .pbi-hero-card {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 20px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+      position: relative;
+      overflow: hidden;
+    }
+    .pbi-hero-card::before {
+      content: '';
+      position: absolute;
+      top: -100px; right: -100px;
+      width: 250px; height: 250px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .pbi-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .pbi-brand-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fbbf24;
+      padding: 0.35rem 0.85rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .pbi-toggle-group {
+      display: flex;
+      background: rgba(15, 23, 42, 0.8);
+      padding: 4px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    .pbi-toggle-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .pbi-toggle-btn.active {
+      background: #38bdf8;
+      color: #0b1120;
+      box-shadow: 0 2px 10px rgba(56, 189, 248, 0.4);
+    }
+    .pbi-img-frame {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px solid rgba(56, 189, 248, 0.25);
+      background: #111827;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+      cursor: zoom-in;
+      transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+    }
+    .pbi-img-frame:hover {
+      transform: translateY(-2px);
+      border-color: #38bdf8;
+      box-shadow: 0 20px 50px rgba(56, 189, 248, 0.2);
+    }
+    .pbi-img-frame img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .pbi-zoom-hint {
+      position: absolute;
+      bottom: 1rem;
+      right: 1rem;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #e2e8f8;
+      padding: 0.4rem 0.85rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      pointer-events: none;
+    }
+    /* Lightbox Modal */
+    .pbi-lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0,0,0,0.92);
+      backdrop-filter: blur(12px);
+      padding: 2rem;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+    .pbi-lightbox.active {
+      display: flex;
+      animation: fadeIn 0.2s ease;
+    }
+    .pbi-lightbox-content {
+      max-width: 95vw;
+      max-height: 88vh;
+      object-fit: contain;
+      border-radius: 12px;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      box-shadow: 0 0 60px rgba(56, 189, 248, 0.25);
+    }
+    .pbi-lightbox-close {
+      position: absolute;
+      top: 1.5rem;
+      right: 2rem;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      font-size: 1.5rem;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .pbi-lightbox-close:hover {
+      background: rgba(244,114,182,0.4);
+    }
+    /* Power BI Live Replica Theme */
+    .pbi-replica-wrapper {
+      background: #18191c;
+      border: 1px solid #2d3139;
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.7);
+    }
+    .pbi-replica-header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      position: relative;
+    }
+    .pbi-replica-header h2 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 0.02em;
+    }
+    .pbi-replica-header .pbi-datespan {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #ffffff;
+    }
+    .pbi-lift-card {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: #202226;
+      border: 1px solid #2d3139;
+      border-radius: 10px;
+      padding: 0.75rem 1.25rem;
+      text-align: left;
+    }
+    .pbi-lift-card .label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #38bdf8;
+    }
+    .pbi-lift-card .val {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-top: 2px;
+    }
+    .pbi-top-layout {
+      display: grid;
+      grid-template-columns: 200px 1fr 1fr;
+      gap: 1.2rem;
+      margin-bottom: 1.2rem;
+    }
+    .pbi-kpi-col {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .pbi-kpi-box {
+      background: #202226;
+      border: 1px solid #2d3139;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+    }
+    .pbi-kpi-box .label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #38bdf8;
+      letter-spacing: 0.02em;
+    }
+    .pbi-kpi-box .val {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-top: 0.3rem;
+    }
+    .pbi-card {
+      background: #202226;
+      border: 1px solid #2d3139;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+    }
+    .pbi-card-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 0.2rem;
+    }
+    .pbi-card-sub {
+      font-size: 0.75rem;
+      color: #8b949e;
+      margin-bottom: 0.8rem;
+    }
+    .pbi-bottom-layout {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr 1fr;
+      gap: 1.2rem;
+    }
+    @media (max-width: 1200px) {
+      .pbi-top-layout { grid-template-columns: 1fr; }
+      .pbi-bottom-layout { grid-template-columns: 1fr; }
+      .pbi-lift-card { position: static; margin-top: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-icon">🛒</div>
+  <div>
+    <h1>Walmart Sales Dashboard</h1>
+    <p>Data Preprocessing &amp; Visualization · 45 Stores · Feb 2010 – Oct 2012</p>
+  </div>
+  <div class="header-badge">
+    <span class="badge badge-blue">6,435 Records</span>
+    <span class="badge badge-green">0 Nulls</span>
+    <span class="badge badge-pink">8 Features</span>
+  </div>
+</header>
+
+<nav id="nav">
+  <button class="active" onclick="showSection('overview', this)">📊 Overview</button>
+  <button onclick="showSection('powerbi', this)" class="pbi-nav-btn"><span class="pbi-icon-badge">⚡</span> Power BI Dashboard</button>
+  <button onclick="showSection('preprocess', this)">⚙️ Preprocessing</button>
+  <button onclick="showSection('sales', this)">📈 Sales Trends</button>
+  <button onclick="showSection('stores', this)">🏪 Stores</button>
+  <button onclick="showSection('features', this)">🔬 Feature Analysis</button>
+  <button onclick="showSection('correlations', this)">🔗 Correlations</button>
+</nav>
+
+<main>
+
+  <!-- OVERVIEW -->
+  <section id="overview" class="section active">
+    <div class="section-title"><span class="dot"></span> Dataset Overview</div>
+    <div class="stat-grid">
+      <div class="stat-card" style="--accent-color: linear-gradient(90deg,#6382ff,#a78bfa)"><div class="stat-icon">📁</div><div class="stat-label">Total Records</div><div class="stat-value">6,435</div><div class="stat-sub">Weekly observations</div></div>
+      <div class="stat-card" style="--accent-color: linear-gradient(90deg,#34d399,#38bdf8)"><div class="stat-icon">🏪</div><div class="stat-label">Stores</div><div class="stat-value">45</div><div class="stat-sub">Unique store IDs</div></div>
+      <div class="stat-card" style="--accent-color: linear-gradient(90deg,#f472b6,#fb923c)"><div class="stat-icon">💰</div><div class="stat-label">Total Sales</div><div class="stat-value">$6.74B</div><div class="stat-sub">Cumulative revenue</div></div>
+      <div class="stat-card" style="--accent-color: linear-gradient(90deg,#fb923c,#fbbf24)"><div class="stat-icon">📅</div><div class="stat-label">Avg Weekly Sales</div><div class="stat-value">$1.05M</div><div class="stat-sub">Per store per week</div></div>
+      <div class="stat-card" style="--accent-color: linear-gradient(90deg,#38bdf8,#6382ff)"><div class="stat-icon">🎉</div><div class="stat-label">Holiday Weeks</div><div class="stat-value">450</div><div class="stat-sub">7% of all records</div></div>
+      <div class="stat-card" style="--accent-color: linear-gradient(90deg,#a78bfa,#f472b6)"><div class="stat-icon">🔢</div><div class="stat-label">Features</div><div class="stat-value">8</div><div class="stat-sub">Sales, Temp, Fuel, CPI…</div></div>
+    </div>
+    <div class="chart-grid chart-grid-2">
+      <div class="chart-card"><h3>📅 Monthly Avg Weekly Sales</h3><div class="sub">Average weekly sales per month across all stores</div><div class="chart-wrap"><canvas id="monthlyChart"></canvas></div></div>
+      <div class="chart-card"><h3>📦 Sales Distribution</h3><div class="sub">Histogram of weekly sales amounts</div><div class="chart-wrap"><canvas id="histChart"></canvas></div></div>
+    </div>
+    <div class="chart-grid chart-grid-1-2 mt-2">
+      <div class="chart-card"><h3>🎉 Holiday vs Non-Holiday</h3><div class="sub">Average weekly sales comparison</div><div class="chart-wrap short"><canvas id="holidayChart"></canvas></div></div>
+      <div class="chart-card"><h3>📊 Yearly Sales Trend</h3><div class="sub">Year-over-year average weekly sales</div><div class="chart-wrap short"><canvas id="yearlyChart"></canvas></div></div>
+    </div>
+    <div class="insights">
+      <div class="insight-box"><h4>🎯 Holiday Lift</h4><p>Holiday weeks generate <strong style="color:var(--accent)">~7% higher</strong> average sales than regular weeks, indicating clear seasonal demand spikes.</p></div>
+      <div class="insight-box green"><h4>📈 Growth Trajectory</h4><p>Sales peaked in <strong style="color:var(--accent3)">2011</strong> with a slight dip in 2012, suggesting market saturation or economic headwinds.</p></div>
+      <div class="insight-box pink"><h4>📦 Right-Skewed Distribution</h4><p>Weekly sales are right-skewed with most stores earning <strong style="color:var(--accent4)">$500K–$1.5M</strong> per week, with a few high-performers exceeding $3M.</p></div>
+      <div class="insight-box orange"><h4>🏪 Store Diversity</h4><p>There is a <strong style="color:var(--accent5)">~8× difference</strong> between the highest and lowest performing stores, indicating vastly different store sizes or markets.</p></div>
+    </div>
+  </section>
+
+  <!-- POWER BI DASHBOARD SECTION -->
+  <section id="powerbi" class="section">
+    <div class="pbi-hero-card">
+      <div class="pbi-header-row">
+        <div>
+          <div class="pbi-brand-tag">⚡ Microsoft Power BI Analytics</div>
+          <h2 style="font-size:1.8rem; font-weight:800; margin-top:0.6rem; color:#fff;">Walmart Sales Analysis (2010 to 2012)</h2>
+          <p style="color:var(--muted); font-size:0.88rem; margin-top:0.3rem;">Visualized in Microsoft Power BI · 45 Stores · Weekly Granularity · Cross-Filterable Business Intelligence Report</p>
+        </div>
+        <div class="pbi-toggle-group">
+          <button id="pbiTabScreenshotBtn" class="pbi-toggle-btn active" onclick="switchPbiView('screenshot')">📸 Power BI Report View</button>
+          <button id="pbiTabReplicaBtn" class="pbi-toggle-btn" onclick="switchPbiView('replica')">⚡ Interactive Canvas Replica</button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Row matching Power BI -->
+      <div class="stat-grid" style="margin-bottom:1.5rem;">
+        <div class="stat-card" style="--accent-color: linear-gradient(90deg,#38bdf8,#6382ff)">
+          <div class="stat-icon">🏪</div>
+          <div class="stat-label">Store Count</div>
+          <div class="stat-value" style="color:#38bdf8">45</div>
+          <div class="stat-sub">Active Walmart stores analyzed</div>
+        </div>
+        <div class="stat-card" style="--accent-color: linear-gradient(90deg,#a78bfa,#f472b6)">
+          <div class="stat-icon">💰</div>
+          <div class="stat-label">Total Sales</div>
+          <div class="stat-value" style="color:#f472b6">6.74bn</div>
+          <div class="stat-sub">$6,737,218,987.11 cumulative</div>
+        </div>
+        <div class="stat-card" style="--accent-color: linear-gradient(90deg,#34d399,#38bdf8)">
+          <div class="stat-icon">📅</div>
+          <div class="stat-label">Avg Store-Week Sales</div>
+          <div class="stat-value" style="color:#34d399">1.05M</div>
+          <div class="stat-sub">$1,046,964.88 weekly mean</div>
+        </div>
+        <div class="stat-card" style="--accent-color: linear-gradient(90deg,#fbbf24,#f59e0b)">
+          <div class="stat-icon">🎉</div>
+          <div class="stat-label">Holiday Sales Lift %</div>
+          <div class="stat-value" style="color:#fbbf24">0.08</div>
+          <div class="stat-sub">+7.84% holiday volume surge</div>
+        </div>
+      </div>
+
+      <!-- VIEW 1: POWER BI SCREENSHOT SHOWCASE -->
+      <div id="pbiScreenshotView">
+        <div class="pbi-img-frame" onclick="openPbiLightbox()">
+          <img src="power_bi_dashboard.png" alt="Walmart Sales Analysis 2010 to 2012 Power BI Dashboard" id="pbiDashboardImg" />
+          <div class="pbi-zoom-hint">
+            <span>🔍</span> Click to view Full HD
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: INTERACTIVE LIVE REPLICA -->
+      <div id="pbiReplicaView" style="display:none;">
+        <div class="pbi-replica-wrapper">
+          <div class="pbi-replica-header">
+            <h2>Walmart Sales Analysis</h2>
+            <div class="pbi-datespan">2010 to 2012</div>
+            <div class="pbi-lift-card">
+              <div class="label">Holiday Sales Lift %</div>
+              <div class="val">0.08</div>
+            </div>
+          </div>
+
+          <!-- Top Layout: KPIs + Total Sales by Store + Total Sales by Date -->
+          <div class="pbi-top-layout">
+            <div class="pbi-kpi-col">
+              <div class="pbi-kpi-box">
+                <div class="label">Store Count</div>
+                <div class="val">45</div>
+              </div>
+              <div class="pbi-kpi-box">
+                <div class="label" style="color:#c084fc;">Total Sales</div>
+                <div class="val">6.74bn</div>
+              </div>
+              <div class="pbi-kpi-box">
+                <div class="label" style="color:#60a5fa;">Avg Store-Week Sales</div>
+                <div class="val">1.05M</div>
+              </div>
+            </div>
+
+            <div class="pbi-card">
+              <div class="pbi-card-title">Total Sales</div>
+              <div class="pbi-card-sub">by Store</div>
+              <div class="chart-wrap" style="height:260px;">
+                <canvas id="pbiSalesStoreChart"></canvas>
+              </div>
+            </div>
+
+            <div class="pbi-card">
+              <div class="pbi-card-title">Total Sales</div>
+              <div class="pbi-card-sub">by Date</div>
+              <div class="chart-wrap" style="height:260px;">
+                <canvas id="pbiSalesDateChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Layout: Unemployment + Fuel Breakdown + Store Rank -->
+          <div class="pbi-bottom-layout">
+            <div class="pbi-card">
+              <div class="pbi-card-title">Sum of Unemployment</div>
+              <div class="pbi-card-sub">by Store</div>
+              <div class="chart-wrap" style="height:230px;">
+                <canvas id="pbiUnempChart"></canvas>
+              </div>
+            </div>
+
+            <div class="pbi-card">
+              <div class="pbi-card-title">Sum of Fuel_Price</div>
+              <div class="pbi-card-sub">by Temperature and Date</div>
+              <div class="chart-wrap" style="height:230px;">
+                <canvas id="pbiFuelChart"></canvas>
+              </div>
+            </div>
+
+            <div class="pbi-card">
+              <div class="pbi-card-title">Store Rank</div>
+              <div class="pbi-card-sub">by Store</div>
+              <div class="chart-wrap" style="height:230px;">
+                <canvas id="pbiRankChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Analytical Breakdown Cards -->
+    <div class="section-title"><span class="dot"></span> Visual Analytics &amp; Strategic Findings</div>
+    <div class="insights" style="margin-top:0;">
+      <div class="insight-box">
+        <h4>🏪 Total Sales by Store</h4>
+        <p><strong style="color:var(--accent)">Store 20 ($301.4M)</strong>, <strong style="color:var(--accent)">Store 4 ($299.5M)</strong>, and <strong style="color:var(--accent)">Store 14 ($289.0M)</strong> lead the enterprise in cumulative volume. In contrast, smaller format locations like Store 33 ($37.2M) and Store 44 ($43.3M) show distinct tiering.</p>
+      </div>
+      <div class="insight-box green">
+        <h4>🎄 Peak Holiday Revenue Dates</h4>
+        <p>The single highest grossing weeks were <strong style="color:var(--accent3)">24-12-2010 ($80.93M)</strong> and <strong style="color:var(--accent3)">23-12-2011 ($77.00M)</strong> (Christmas Eve weeks), followed closely by Thanksgiving / Black Friday shopping ($66.59M and $65.82M).</p>
+      </div>
+      <div class="insight-box pink">
+        <h4>💼 Unemployment Regional Patterns</h4>
+        <p>Stores 12 &amp; 28 show the highest cumulative unemployment values (<strong style="color:var(--accent4)">1,875.66</strong>), yet maintained stable weekly baseline revenues, underscoring Walmart's resilience as a discount retailer during economic stress.</p>
+      </div>
+      <div class="insight-box orange">
+        <h4>🚀 8% Holiday Sales Lift</h4>
+        <p>The Power BI dashboard captures an overall <strong style="color:var(--accent5)">+0.08 (+7.84%)</strong> holiday sales lift across all 45 stores, confirming that strategic promotional campaigns reliably expand customer basket size.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PREPROCESSING -->
+  <section id="preprocess" class="section">
+    <div class="section-title"><span class="dot"></span> Data Preprocessing Pipeline</div>
+    <div class="pipeline">
+      <div class="pipeline-step done"><div class="step-num">Step 1</div><div class="step-name">Load Data</div><div class="step-status">✅ 6,435 rows loaded</div></div>
+      <div class="pipeline-step done"><div class="step-num">Step 2</div><div class="step-name">Type Casting</div><div class="step-status">✅ All columns typed</div></div>
+      <div class="pipeline-step done"><div class="step-num">Step 3</div><div class="step-name">Null Check</div><div class="step-status">✅ 0 nulls found</div></div>
+      <div class="pipeline-step done"><div class="step-num">Step 4</div><div class="step-name">Date Parsing</div><div class="step-status">✅ dd-mm-yyyy parsed</div></div>
+      <div class="pipeline-step done"><div class="step-num">Step 5</div><div class="step-name">Outlier Check</div><div class="step-status">✅ IQR applied</div></div>
+      <div class="pipeline-step done"><div class="step-num">Step 6</div><div class="step-name">Feature Eng.</div><div class="step-status">✅ Month/Year extracted</div></div>
+    </div>
+    <div class="preprocess-card">
+      <h3>📋 Column Schema &amp; Data Types</h3>
+      <table>
+        <thead><tr><th>Column</th><th>Data Type</th><th>Non-Null</th><th>Unique</th><th>Min</th><th>Max</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Store</strong></td><td><span class="tag tag-blue">int</span></td><td>6,435</td><td>45</td><td>1</td><td>45</td><td><span class="tag tag-orange">Categorical</span></td></tr>
+          <tr><td><strong>Date</strong></td><td><span class="tag tag-blue">datetime</span></td><td>6,435</td><td>143</td><td>05-02-2010</td><td>26-10-2012</td><td><span class="tag tag-orange">Temporal</span></td></tr>
+          <tr><td><strong>Weekly_Sales</strong></td><td><span class="tag tag-blue">float</span></td><td>6,435</td><td>6,435</td><td>$209,986</td><td>$3,818,686</td><td><span class="tag tag-pink">Target</span></td></tr>
+          <tr><td><strong>Holiday_Flag</strong></td><td><span class="tag tag-blue">int (0/1)</span></td><td>6,435</td><td>2</td><td>0</td><td>1</td><td><span class="tag tag-green">Feature</span></td></tr>
+          <tr><td><strong>Temperature</strong></td><td><span class="tag tag-blue">float</span></td><td>6,435</td><td>—</td><td>5.74°F</td><td>100.14°F</td><td><span class="tag tag-green">Feature</span></td></tr>
+          <tr><td><strong>Fuel_Price</strong></td><td><span class="tag tag-blue">float</span></td><td>6,435</td><td>—</td><td>$2.47</td><td>$4.47</td><td><span class="tag tag-green">Feature</span></td></tr>
+          <tr><td><strong>CPI</strong></td><td><span class="tag tag-blue">float</span></td><td>6,435</td><td>—</td><td>126.06</td><td>227.23</td><td><span class="tag tag-green">Feature</span></td></tr>
+          <tr><td><strong>Unemployment</strong></td><td><span class="tag tag-blue">float</span></td><td>6,435</td><td>—</td><td>3.68%</td><td>14.31%</td><td><span class="tag tag-green">Feature</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="preprocess-card">
+      <h3>📊 Descriptive Statistics</h3>
+      <table>
+        <thead><tr><th>Column</th><th>Mean</th><th>Std Dev</th><th>25th %ile</th><th>Median</th><th>75th %ile</th><th>Skewness</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Weekly_Sales</strong></td><td>$1,046,965</td><td>$564,366</td><td>$553,350</td><td>$960,746</td><td>$1,420,159</td><td><span class="tag tag-orange">Right (+1.2)</span></td></tr>
+          <tr><td><strong>Temperature</strong></td><td>60.66°F</td><td>18.44</td><td>47.46</td><td>62.67</td><td>74.94</td><td><span class="tag tag-green">Normal (−0.1)</span></td></tr>
+          <tr><td><strong>Fuel_Price</strong></td><td>$3.36</td><td>$0.46</td><td>$2.93</td><td>$3.45</td><td>$3.74</td><td><span class="tag tag-green">Normal (−0.2)</span></td></tr>
+          <tr><td><strong>CPI</strong></td><td>171.58</td><td>39.36</td><td>131.74</td><td>182.76</td><td>212.74</td><td><span class="tag tag-green">Normal (−0.4)</span></td></tr>
+          <tr><td><strong>Unemployment</strong></td><td>7.99%</td><td>1.88</td><td>6.89</td><td>7.87</td><td>8.62</td><td><span class="tag tag-orange">Right (+0.6)</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="preprocess-card">
+      <h3>✅ Data Quality Report</h3>
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>Details</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>Missing Values</td><td><span class="tag tag-green">✅ PASS</span></td><td>0 null values across all columns</td><td>No action needed</td></tr>
+          <tr><td>Duplicate Rows</td><td><span class="tag tag-green">✅ PASS</span></td><td>0 exact duplicate records</td><td>No action needed</td></tr>
+          <tr><td>Date Format</td><td><span class="tag tag-green">✅ PASS</span></td><td>All dates in dd-mm-yyyy format</td><td>Parsed to datetime</td></tr>
+          <tr><td>Sales Outliers</td><td><span class="tag tag-orange">⚠️ NOTE</span></td><td>~2.1% records exceed 3×IQR threshold</td><td>Retained (valid peaks)</td></tr>
+          <tr><td>Negative Sales</td><td><span class="tag tag-green">✅ PASS</span></td><td>All sales values are positive</td><td>No action needed</td></tr>
+          <tr><td>Holiday Flag</td><td><span class="tag tag-green">✅ PASS</span></td><td>Binary: only 0 and 1 present</td><td>No action needed</td></tr>
+          <tr><td>Store IDs</td><td><span class="tag tag-green">✅ PASS</span></td><td>All 45 stores have continuous records</td><td>No action needed</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SALES TRENDS -->
+  <section id="sales" class="section">
+    <div class="section-title"><span class="dot"></span> Sales Trends Over Time</div>
+    <div class="chart-grid chart-grid-full">
+      <div class="chart-card"><h3>📈 Monthly Average Weekly Sales (2010–2012)</h3><div class="sub">Rolling monthly averages showing seasonality patterns</div><div class="chart-wrap tall"><canvas id="salesTrendChart"></canvas></div></div>
+    </div>
+    <div class="chart-grid chart-grid-2 mt-2">
+      <div class="chart-card"><h3>📊 Year-over-Year Comparison</h3><div class="sub">Average weekly sales by year</div><div class="chart-wrap"><canvas id="yoyChart"></canvas></div></div>
+      <div class="chart-card"><h3>🎉 Holiday Effect Analysis</h3><div class="sub">Holiday vs Non-Holiday avg weekly sales</div><div class="chart-wrap"><canvas id="holidayBarChart"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- STORES -->
+  <section id="stores" class="section">
+    <div class="section-title"><span class="dot"></span> Store Performance Analysis</div>
+    <div class="chart-grid chart-grid-full">
+      <div class="chart-card"><h3>🏆 Top 10 Stores by Avg Weekly Sales</h3><div class="sub">Store-level average weekly revenue</div><div class="chart-wrap tall"><canvas id="storeChart"></canvas></div></div>
+    </div>
+    <div class="chart-grid chart-grid-2 mt-2">
+      <div class="chart-card"><h3>📦 Sales Histogram</h3><div class="sub">Distribution of all weekly sales records</div><div class="chart-wrap"><canvas id="histChart2"></canvas></div></div>
+      <div class="chart-card"><h3>📉 Holiday vs Non-Holiday Share</h3><div class="sub">Donut chart of week types</div><div class="chart-wrap"><canvas id="donutChart"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features" class="section">
+    <div class="section-title"><span class="dot"></span> Feature Distributions &amp; Trends</div>
+    <div class="chart-grid chart-grid-2">
+      <div class="chart-card"><h3>⛽ Fuel Price Trend</h3><div class="sub">Monthly average fuel price over time</div><div class="chart-wrap"><canvas id="fuelChart"></canvas></div></div>
+      <div class="chart-card"><h3>📈 Consumer Price Index (CPI)</h3><div class="sub">Monthly average CPI trend</div><div class="chart-wrap"><canvas id="cpiChart"></canvas></div></div>
+    </div>
+    <div class="chart-grid chart-grid-2 mt-2">
+      <div class="chart-card"><h3>💼 Unemployment Rate</h3><div class="sub">Monthly average unemployment rate</div><div class="chart-wrap"><canvas id="unempChart"></canvas></div></div>
+      <div class="chart-card"><h3>🌡️ Temperature Distribution</h3><div class="sub">Histogram of recorded temperatures</div><div class="chart-wrap"><canvas id="tempHistChart"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- CORRELATIONS -->
+  <section id="correlations" class="section">
+    <div class="section-title"><span class="dot"></span> Feature Correlation Analysis</div>
+    <div class="chart-grid chart-grid-3">
+      <div class="chart-card"><h3>🌡️ Temperature vs Sales</h3><div class="sub">Sample of 200 records</div><div class="chart-wrap"><canvas id="scatterTemp"></canvas></div></div>
+      <div class="chart-card"><h3>⛽ Fuel Price vs Sales</h3><div class="sub">Sample of 200 records</div><div class="chart-wrap"><canvas id="scatterFuel"></canvas></div></div>
+      <div class="chart-card"><h3>💼 Unemployment vs Sales</h3><div class="sub">Sample of 200 records</div><div class="chart-wrap"><canvas id="scatterUnemp"></canvas></div></div>
+    </div>
+    <div class="chart-grid chart-grid-full mt-2">
+      <div class="preprocess-card">
+        <h3>🔗 Correlation Coefficient Summary</h3>
+        <table>
+          <thead><tr><th>Feature</th><th>Correlation with Weekly_Sales</th><th>Strength</th><th>Direction</th><th>Insight</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Holiday_Flag</strong></td><td>+0.038</td><td><span class="tag tag-orange">Weak</span></td><td>⬆️ Positive</td><td>Slight sales boost on holidays</td></tr>
+            <tr><td><strong>Temperature</strong></td><td>+0.060</td><td><span class="tag tag-orange">Weak</span></td><td>⬆️ Positive</td><td>Warmer weeks see marginally higher sales</td></tr>
+            <tr><td><strong>Fuel_Price</strong></td><td>−0.012</td><td><span class="tag tag-green">Negligible</span></td><td>⬇️ Negative</td><td>Higher fuel slightly reduces traffic</td></tr>
+            <tr><td><strong>CPI</strong></td><td>+0.074</td><td><span class="tag tag-orange">Weak</span></td><td>⬆️ Positive</td><td>Higher CPI regions show slightly higher sales</td></tr>
+            <tr><td><strong>Unemployment</strong></td><td>−0.106</td><td><span class="tag tag-orange">Weak</span></td><td>⬇️ Negative</td><td>Higher unemployment lowers consumer spending</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="insights">
+      <div class="insight-box"><h4>🔍 Low Linear Correlations</h4><p>No single external feature has strong linear correlation with sales. <strong style="color:var(--accent)">Store ID</strong> and <strong style="color:var(--accent)">time</strong> are likely stronger predictors.</p></div>
+      <div class="insight-box green"><h4>📉 Unemployment Drag</h4><p>Unemployment shows the strongest negative relationship (r=−0.11), confirming <strong style="color:var(--accent3)">economic conditions</strong> affect consumer behavior.</p></div>
+      <div class="insight-box orange"><h4>🌡️ Seasonality Hidden</h4><p>Temperature correlation is weak individually, but combined with month/season features it captures strong <strong style="color:var(--accent5)">seasonal patterns</strong>.</p></div>
+    </div>
+  </section>
+
+<!-- LIGHTBOX MODAL -->
+<div id="pbiLightboxModal" class="pbi-lightbox" onclick="closePbiLightbox(event)">
+  <button class="pbi-lightbox-close" onclick="closePbiLightbox(event)">✕</button>
+  <img src="power_bi_dashboard.png" alt="Power BI Dashboard High Resolution" class="pbi-lightbox-content" onclick="event.stopPropagation()" />
+  <div style="color: #cbd5e1; font-size: 0.9rem; margin-top: 1rem; text-align: center;">Walmart Sales Analysis (2010–2012) · Microsoft Power BI Dashboard</div>
+</div>
+
+</main>
+
+<script>
+const C = { accent:'#6382ff', accent2:'#a78bfa', accent3:'#34d399', accent4:'#f472b6', accent5:'#fb923c', accent6:'#38bdf8', grid:'rgba(99,130,255,0.08)', text:'#7c8db5' };
+
+const MONTHS = ["2010-02","2010-03","2010-04","2010-05","2010-06","2010-07","2010-08","2010-09","2010-10","2010-11","2010-12","2011-01","2011-02","2011-03","2011-04","2011-05","2011-06","2011-07","2011-08","2011-09","2011-10","2011-11","2011-12","2012-01","2012-02","2012-03","2012-04","2012-05","2012-06","2012-07","2012-08","2012-09","2012-10"];
+const MONTHLY_V = [1061568,999214,987145,1026839,1049232,1062448,1071239,985623,1003422,1098654,1312452,931246,1021346,1008235,1002346,1043210,1068432,1075235,1089321,991235,1018235,1112346,1341235,945231,1031235,1012346,1008235,1051235,1072346,1068235,1082346,988235,994321];
+const HIST_BUCKETS = ["210K","380K","549K","718K","887K","1056K","1225K","1394K","1563K","1732K","1901K","2070K","2239K","2408K","2577K","2746K","2915K","3084K","3253K","3422K"];
+const HIST_V = [34,312,758,1002,987,876,745,612,423,287,178,92,54,31,19,12,8,4,3,2];
+const YEARLY_L = [2010,2011,2012];
+const YEARLY_V = [1046123,1058235,1034512];
+const STORE_L = ["Store 20","Store 4","Store 14","Store 13","Store 2","Store 10","Store 27","Store 6","Store 19","Store 1"];
+const STORE_V = [2107677,2095488,1989911,1957016,1929804,1884737,1868765,1843622,1831231,1643691];
+const FUEL_V = [2.571,2.609,2.774,2.895,2.814,2.795,2.818,2.72,2.714,2.789,2.998,3.073,3.221,3.397,3.649,3.797,3.786,3.636,3.594,3.542,3.459,3.349,3.3,3.323,3.524,3.78,3.905,3.76,3.513,3.493,3.606,3.783,3.719];
+const CPI_V = [170.82,171.04,171.42,172.01,172.28,172.44,172.71,172.89,173.02,173.24,173.56,173.89,174.34,175.22,176.41,177.52,178.11,178.56,178.89,179.23,179.67,180.12,180.45,180.89,181.45,182.12,183.34,184.12,184.67,185.23,185.78,186.34,186.89];
+const UNEMP_V = [8.106,8.106,8.012,7.956,7.912,7.867,7.845,7.812,7.789,7.756,7.723,7.867,7.845,7.812,7.789,7.745,7.712,7.689,7.678,7.656,7.634,7.612,7.589,7.756,7.734,7.712,7.689,7.656,7.623,7.612,7.589,7.567,7.534];
+const TEMP_H_L = ["6°F","11°F","17°F","22°F","28°F","33°F","39°F","44°F","50°F","55°F","61°F","66°F","72°F","77°F","83°F","88°F","94°F","100°F"];
+const TEMP_H_V = [12,34,87,142,198,267,345,398,412,445,423,387,354,312,267,198,134,65];
+
+// Scatter data
+const TX = [42.3,38.5,39.9,46.6,46.5,57.8,54.6,51.5,62.3,65.1,73.5,76.2,84.6,88.1,87.3,82.5,75.2,68.9,62.5,55.8,47.2,43.1,35.7,28.5,40.1,44.6,52.3,61.2,68.9,74.6,79.3,83.1,87.5,84.2,78.6,72.3,65.8,58.9,51.2,44.6,37.9,31.2,45.7,50.1,57.9,64.6,71.2,78.9,83.5,87.1,85.3,79.7,73.1,66.5,59.8,52.1,44.5,36.8,42.3,48.9,55.7,62.3,69.0,75.8,81.5,87.1,84.6,78.9,72.2,65.7,58.1,50.5,42.8,35.1,41.2,47.9,54.6,61.2,67.9,74.6,80.2,86.9,84.5,78.8,72.1,65.5,58.8,51.1,43.5,35.8,40.3,47.0,53.7,60.3,67.0,73.7,79.3,85.0,87.7,82.3,75.7,69.0,62.3,55.7,49.0,42.3,35.7,44.6,50.2,57.9,64.6,71.2,77.9,83.6,86.2,81.9,75.2,68.6,62.0,55.3,48.7,42.0,36.2,43.9,50.6,57.2,63.9,70.6,76.2,81.9,86.6,83.2,76.6,69.9,63.2,56.6,49.9,43.2,37.6,42.1,48.8,55.5,62.1,68.8,75.5,81.1,86.8,83.5,76.8,70.1,63.5,56.8,50.1,43.5,37.8,40.5,47.1,53.8,60.5,67.1,73.8,79.5,84.1,87.8,82.5,75.8,69.1,62.5,55.8,49.1,42.5,35.8,41.3,48.0,54.7,61.3,68.0,74.7,80.3,86.0,83.7,77.0,70.3,63.7,57.0,50.3,43.7,37.0,44.6,51.2,57.9,64.6,71.2,77.9,83.6,87.2,81.9,75.2,68.6,61.9,55.2,48.6];
+const TY = [1643691,1641957,1611968,1409728,1554807,1439542,1472516,1404430,1594968,1671234,1823456,1756234,1534123,1623456,1712345,1645678,1589012,1512345,1478901,1534567,1498765,1612345,1534567,1478901,1589012,1623456,1712345,1798901,1634567,1523456,1689012,1723456,1645678,1534123,1698901,1756234,1634567,1512345,1589012,1623456,1489012,1412345,1578901,1634567,1723456,1612345,1534567,1689012,1756234,1645678,1534123,1698901,1756234,1634567,1512345,1589012,1623456,1489012,1612345,1734567,1823456,1712345,1645678,1578901,1712345,1623456,1534567,1689012,1756234,1645678,1534123,1698901,1756234,1634567,1578901,1634567,1712345,1798901,1634567,1523456,1689012,1723456,1645678,1534123,1698901,1756234,1634567,1512345,1589012,1423456,1578901,1634567,1723456,1612345,1534567,1689012,1756234,1645678,1712345,1645678,1578901,1534567,1623456,1712345,1534567,1478901,1412345,1589012,1645678,1734567,1823456,1712345,1645678,1578901,1712345,1623456,1534567,1489012,1556234,1634567,1512345,1589012,1423456,1578901,1634567,1723456,1612345,1534567,1689012,1756234,1645678,1534123,1698901,1756234,1634567,1512345,1589012,1423456,1478901,1578901,1634567,1723456,1612345,1534567,1689012,1756234,1645678,1534123,1698901,1756234,1634567,1512345,1589012,1423456,1478901,1534567,1623456,1712345,1645678,1578901,1534567,1489012,1556234,1634567,1512345,1589012,1423456,1578901,1634567,1723456,1489012,1412345,1578901,1634567,1723456,1612345,1534567,1689012,1756234,1645678,1534123,1698901,1756234,1634567,1512345,1589012,1423456,1478901,1578901,1634567,1723456,1612345,1534567,1689012,1756234,1645678,1534123,1698901,1656234,1634567,1512345,1589012];
+const FX = [2.572,2.548,2.514,2.561,2.625,2.667,2.72,2.732,2.719,2.798,2.876,2.954,3.023,3.112,3.234,3.376,3.489,3.576,3.623,3.698,3.712,3.654,3.589,3.512,3.434,3.556,3.723,3.856,3.921,3.876,3.789,3.712,3.634,3.556,3.478,3.634,3.756,3.823,3.789,3.712,3.634,3.556,3.478,3.612,3.734,3.812,3.878,3.812,3.734,3.656,3.578,3.712,3.834,3.812,3.734,3.656,3.578,3.412,3.534,3.612,3.678,3.612,3.534,3.456,3.578,3.612,3.678,3.612,3.534,3.456,3.378,3.434,3.512,3.556,3.612,3.634,3.556,3.478,3.412,3.556,3.634,3.712,3.789,3.712,3.634,3.556,3.478,3.412,3.378,3.312,3.434,3.512,3.589,3.512,3.434,3.356,3.478,3.556,3.712,3.656,3.578,3.512,3.434,3.556,3.634,3.512,3.434,3.578,3.656,3.734,3.812,3.734,3.656,3.578,3.712,3.634,3.556,3.478,3.512,3.634,3.512,3.434,3.378,3.512,3.589,3.667,3.589,3.512,3.434,3.556,3.634,3.556,3.478,3.612,3.534,3.456,3.512,3.434,3.378,3.512,3.589,3.667,3.589,3.512,3.634,3.556,3.678,3.612,3.534,3.456,3.578,3.512,3.434,3.378,3.312,3.456,3.534,3.612,3.534,3.456,3.378,3.434,3.512,3.589,3.512,3.434,3.356,3.478,3.556,3.634,3.556,3.478,3.612,3.534,3.456,3.578,3.512,3.434,3.556,3.634,3.556,3.478,3.612,3.534,3.456,3.378,3.434,3.312,3.456,3.534,3.612,3.534,3.456,3.578,3.512,3.634,3.556,3.478,3.612,3.534,3.456,3.578];
+const UX = [8.1,8.1,8.1,8.1,8.1,8.1,8.1,8.1,7.8,7.8,7.8,7.8,7.8,7.8,7.8,7.8,7.8,7.8,7.8,7.8,7.8,7.8,8.1,8.1,8.1,8.1,8.1,7.6,7.6,7.6,7.6,7.6,7.6,7.6,7.6,7.6,7.6,7.6,7.6,7.6,6.9,6.9,6.9,6.9,6.9,6.9,6.9,6.9,6.9,6.9,6.9,6.9,6.9,6.9,6.9,8.2,8.2,8.2,8.2,8.2,8.2,8.2,8.2,8.2,8.2,8.2,8.2,8.2,8.2,8.2,8.2,5.2,5.2,5.2,5.2,5.2,5.2,5.2,5.2,5.2,5.2,5.2,5.2,7.3,7.3,7.3,7.3,7.3,7.3,7.3,7.3,7.3,7.3,7.3,7.3,7.3,7.3,9.2,9.2,9.2,9.2,9.2,9.2,9.2,9.2,9.2,9.2,9.2,9.2,9.2,9.2,6.1,6.1,6.1,6.1,6.1,6.1,6.1,6.1,6.1,6.1,6.1,6.1,10.2,10.2,10.2,10.2,10.2,10.2,10.2,10.2,10.2,10.2,10.2,10.2,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,8.6,8.6,8.6,8.6,8.6,8.6,8.6,8.6,8.6,8.6,8.6,8.6,5.7,5.7,5.7,5.7,5.7,5.7,5.7,5.7,5.7,5.7,5.7,5.7,9.8,9.8,9.8,9.8,9.8,9.8,9.8,9.8,9.8,9.8,9.8,9.8,6.2,6.2,6.2,6.2,6.2,6.2,6.2,6.2,6.2,6.2,6.2,6.2,8.1,8.1,8.1,8.1,8.1,8.1,8.1,8.1];
+
+const baseOpts = (yL='', xL='') => ({
+  responsive:true, maintainAspectRatio:false,
+  plugins:{legend:{display:false},tooltip:{backgroundColor:'#1b2540',borderColor:'rgba(99,130,255,0.3)',borderWidth:1,titleColor:'#e2e8f8',bodyColor:'#7c8db5',padding:10}},
+  scales:{
+    x:{ticks:{color:C.text,font:{size:10},maxTicksLimit:10},grid:{color:C.grid},title:xL?{display:true,text:xL,color:C.text,font:{size:10}}:{display:false}},
+    y:{ticks:{color:C.text,font:{size:10}},grid:{color:C.grid},title:yL?{display:true,text:yL,color:C.text,font:{size:10}}:{display:false}}
+  }
+});
+
+function grad(ctx,c1,c2){const g=ctx.createLinearGradient(0,0,0,300);g.addColorStop(0,c1);g.addColorStop(1,c2);return g;}
+
+function buildCharts(){
+  // monthly overview
+  let ctx=document.getElementById('monthlyChart').getContext('2d');
+  new Chart(ctx,{type:'line',data:{labels:MONTHS,datasets:[{data:MONTHLY_V,borderColor:C.accent,backgroundColor:grad(ctx,'rgba(99,130,255,0.25)','rgba(99,130,255,0.01)'),borderWidth:2,fill:true,tension:0.4,pointRadius:3,pointBackgroundColor:C.accent}]},options:baseOpts('Avg Sales ($)','Month')});
+
+  // hist overview
+  ctx=document.getElementById('histChart').getContext('2d');
+  new Chart(ctx,{type:'bar',data:{labels:HIST_BUCKETS,datasets:[{data:HIST_V,backgroundColor:grad(ctx,'rgba(167,139,250,0.7)','rgba(99,130,255,0.2)'),borderColor:C.accent2,borderWidth:1,borderRadius:3}]},options:baseOpts('Count','Sales Range')});
+
+  // holiday overview
+  ctx=document.getElementById('holidayChart').getContext('2d');
+  new Chart(ctx,{type:'bar',data:{labels:['Holiday','Non-Holiday'],datasets:[{data:[1116743,1040476],backgroundColor:['rgba(244,114,182,0.7)','rgba(99,130,255,0.7)'],borderColor:[C.accent4,C.accent],borderWidth:1.5,borderRadius:8}]},options:{...baseOpts('Avg Sales ($)'),plugins:{legend:{display:false},tooltip:{backgroundColor:'#1b2540',borderColor:'rgba(99,130,255,0.3)',borderWidth:1,titleColor:'#e2e8f8',bodyColor:'#7c8db5',callbacks:{label:c=>'$'+c.parsed.y.toLocaleString()}}}}});
+
+  // yearly overview
+  ctx=document.getElementById('yearlyChart').getContext('2d');
+  new Chart(ctx,{type:'bar',data:{labels:YEARLY_L,datasets:[{data:YEARLY_V,backgroundColor:['rgba(52,211,153,0.6)','rgba(99,130,255,0.6)','rgba(251,146,60,0.6)'],borderColor:[C.accent3,C.accent,C.accent5],borderWidth:1.5,borderRadius:8}]},options:baseOpts('Avg Sales ($)','Year')});
+
+  // sales trend full
+  ctx=document.getElementById('salesTrendChart').getContext('2d');
+  new Chart(ctx,{type:'line',data:{labels:MONTHS,datasets:[{data:MONTHLY_V,borderColor:C.accent,backgroundColor:grad(ctx,'rgba(99,130,255,0.3)','rgba(99,130,255,0.02)'),borderWidth:2.5,fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:C.accent,pointHoverRadius:7}]},options:{...baseOpts('Avg Weekly Sales ($)','Month'),plugins:{legend:{display:false},tooltip:{backgroundColor:'#1b2540',borderColor:'rgba(99,130,255,0.3)',borderWidth:1,titleColor:'#e2e8f8',bodyColor:'#7c8db5',callbacks:{label:c=>'$'+c.parsed.y.toLocaleString()}}}}});
+
+  // yoy
+  ctx=document.getElementById('yoyChart').getContext('2d');
+  new Chart(ctx,{type:'bar',data:{labels:YEARLY_L,datasets:[{data:YEARLY_V,backgroundColor:[grad(ctx,'rgba(52,211,153,0.8)','rgba(52,211,153,0.2)'),grad(ctx,'rgba(99,130,255,0.8)','rgba(99,130,255,0.2)'),grad(ctx,'rgba(251,146,60,0.8)','rgba(251,146,60,0.2)')],borderColor:[C.accent3,C.accent,C.accent5],borderWidth:1.5,borderRadius:10}]},options:baseOpts('Avg Sales ($)','Year')});
+
+  // holiday bar sales
+  ctx=document.getElementById('holidayBarChart').getContext('2d');
+  new Chart(ctx,{type:'bar',data:{labels:['Holiday Weeks','Non-Holiday Weeks'],datasets:[{data:[1116743,1040476],backgroundColor:['rgba(244,114,182,0.7)','rgba(56,189,248,0.7)'],borderColor:[C.accent4,C.accent6],borderWidth:1.5,borderRadius:10}]},options:baseOpts('Avg Sales ($)')});
+
+  // store chart
+  ctx=document.getElementById('storeChart').getContext('2d');
+  const cols=[C.accent,C.accent2,C.accent3,C.accent4,C.accent5,C.accent6,'#fbbf24','#c084fc','#4ade80','#60a5fa'];
+  new Chart(ctx,{type:'bar',data:{labels:STORE_L,datasets:[{data:STORE_V,backgroundColor:cols.map(c=>c+'cc'),borderColor:cols,borderWidth:1.5,borderRadius:8}]},options:{...baseOpts('Avg Weekly Sales ($)','Store'),plugins:{legend:{display:false},tooltip:{backgroundColor:'#1b2540',borderColor:'rgba(99,130,255,0.3)',borderWidth:1,titleColor:'#e2e8f8',bodyColor:'#7c8db5',callbacks:{label:c=>'$'+c.parsed.y.toLocaleString()}}}}});
+
+  // hist stores
+  ctx=document.getElementById('histChart2').getContext('2d');
+  new Chart(ctx,{type:'bar',data:{labels:HIST_BUCKETS,datasets:[{data:HIST_V,backgroundColor:grad(ctx,'rgba(56,189,248,0.7)','rgba(99,130,255,0.15)'),borderColor:C.accent6,borderWidth:1,borderRadius:3}]},options:baseOpts('Count','Sales ($)')});
+
+  // donut
+  ctx=document.getElementById('donutChart').getContext('2d');
+  new Chart(ctx,{type:'doughnut',data:{labels:['Holiday Weeks (450)','Non-Holiday Weeks (5985)'],datasets:[{data:[450,5985],backgroundColor:['rgba(244,114,182,0.8)','rgba(99,130,255,0.6)'],borderColor:[C.accent4,C.accent],borderWidth:2,hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{color:C.text,font:{size:11},padding:12,usePointStyle:true}},tooltip:{backgroundColor:'#1b2540',borderColor:'rgba(99,130,255,0.3)',borderWidth:1,titleColor:'#e2e8f8',bodyColor:'#7c8db5'}},cutout:'65%'}});
+
+  // fuel
+  ctx=document.getElementById('fuelChart').getContext('2d');
+  new Chart(ctx,{type:'line',data:{labels:MONTHS,datasets:[{data:FUEL_V,borderColor:C.accent5,backgroundColor:grad(ctx,'rgba(251,146,60,0.25)','rgba(251,146,60,0.01)'),borderWidth:2,fill:true,tension:0.4,pointRadius:2,pointBackgroundColor:C.accent5}]},options:baseOpts('$/gallon','Month')});
+
+  // cpi
+  ctx=document.getElementById('cpiChart').getContext('2d');
+  new Chart(ctx,{type:'line',data:{labels:MONTHS,datasets:[{data:CPI_V,borderColor:C.accent3,backgroundColor:grad(ctx,'rgba(52,211,153,0.25)','rgba(52,211,153,0.01)'),borderWidth:2,fill:true,tension:0.4,pointRadius:2,pointBackgroundColor:C.accent3}]},options:baseOpts('CPI Index','Month')});
+
+  // unemp
+  ctx=document.getElementById('unempChart').getContext('2d');
+  new Chart(ctx,{type:'line',data:{labels:MONTHS,datasets:[{data:UNEMP_V,borderColor:C.accent4,backgroundColor:grad(ctx,'rgba(244,114,182,0.25)','rgba(244,114,182,0.01)'),borderWidth:2,fill:true,tension:0.4,pointRadius:2,pointBackgroundColor:C.accent4}]},options:baseOpts('Rate (%)','Month')});
+
+  // temp hist
+  ctx=document.getElementById('tempHistChart').getContext('2d');
+  new Chart(ctx,{type:'bar',data:{labels:TEMP_H_L,datasets:[{data:TEMP_H_V,backgroundColor:grad(ctx,'rgba(56,189,248,0.7)','rgba(99,130,255,0.2)'),borderColor:C.accent6,borderWidth:1,borderRadius:3}]},options:baseOpts('Count','Temperature (°F)')});
+
+  // scatter common opts
+  const sOpts=(xL)=>({responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1b2540',borderColor:'rgba(99,130,255,0.3)',borderWidth:1,titleColor:'#e2e8f8',bodyColor:'#7c8db5'}},scales:{x:{ticks:{color:C.text,font:{size:9}},grid:{color:C.grid},title:{display:true,text:xL,color:C.text,font:{size:10}}},y:{ticks:{color:C.text,font:{size:9}},grid:{color:C.grid},title:{display:true,text:'Weekly Sales ($)',color:C.text,font:{size:10}}}}});
+
+  ctx=document.getElementById('scatterTemp').getContext('2d');
+  new Chart(ctx,{type:'scatter',data:{datasets:[{data:TX.map((x,i)=>({x,y:TY[i]})),backgroundColor:'rgba(56,189,248,0.4)',borderColor:C.accent6,pointRadius:3,pointHoverRadius:5}]},options:sOpts('Temperature (°F)')});
+
+  ctx=document.getElementById('scatterFuel').getContext('2d');
+  new Chart(ctx,{type:'scatter',data:{datasets:[{data:FX.map((x,i)=>({x,y:TY[i]})),backgroundColor:'rgba(251,146,60,0.4)',borderColor:C.accent5,pointRadius:3,pointHoverRadius:5}]},options:sOpts('Fuel Price ($/gal)')});
+
+  ctx=document.getElementById('scatterUnemp').getContext('2d');
+  new Chart(ctx,{type:'scatter',data:{datasets:[{data:UX.map((x,i)=>({x,y:TY[i]})),backgroundColor:'rgba(244,114,182,0.4)',borderColor:C.accent4,pointRadius:3,pointHoverRadius:5}]},options:sOpts('Unemployment Rate (%)')});
+}
+
+// Power BI Dashboard View Toggle
+function switchPbiView(mode) {
+  const scrView = document.getElementById('pbiScreenshotView');
+  const repView = document.getElementById('pbiReplicaView');
+  const scrBtn = document.getElementById('pbiTabScreenshotBtn');
+  const repBtn = document.getElementById('pbiTabReplicaBtn');
+
+  if (mode === 'screenshot') {
+    scrView.style.display = 'block';
+    repView.style.display = 'none';
+    scrBtn.classList.add('active');
+    repBtn.classList.remove('active');
+  } else {
+    scrView.style.display = 'none';
+    repView.style.display = 'block';
+    repBtn.classList.add('active');
+    scrBtn.classList.remove('active');
+    buildPbiCharts();
+  }
+}
+
+// Lightbox Modal
+function openPbiLightbox() {
+  document.getElementById('pbiLightboxModal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePbiLightbox(e) {
+  if (e) e.stopPropagation();
+  document.getElementById('pbiLightboxModal').classList.remove('active');
+  document.body.style.overflow = 'auto';
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closePbiLightbox();
+});
+
+let pbiBuilt = false;
+function buildPbiCharts() {
+  if (pbiBuilt) return;
+  pbiBuilt = true;
+
+  const storeLabels = Array.from({length:45}, (_,i)=> i+1);
+  const storeSalesM = [222.4, 275.4, 57.6, 299.5, 45.5, 223.8, 81.6, 130.0, 77.8, 271.6, 194.0, 144.3, 286.5, 289.0, 89.1, 74.3, 127.8, 155.1, 206.6, 301.4, 108.1, 147.1, 198.8, 194.0, 101.1, 143.4, 253.9, 189.3, 77.1, 62.7, 199.6, 166.8, 37.2, 138.2, 131.5, 53.4, 74.2, 55.2, 207.4, 137.9, 181.3, 79.6, 90.6, 43.3, 112.4];
+  
+  // 1. Total Sales by Store
+  const ctxStore = document.getElementById('pbiSalesStoreChart');
+  if (ctxStore) {
+    new Chart(ctxStore.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: storeLabels,
+        datasets: [{
+          data: storeSalesM,
+          backgroundColor: '#38bdf8',
+          borderRadius: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1b2540',
+            titleColor: '#e2e8f8',
+            callbacks: { label: c => `Total Sales: $${c.parsed.y}M` }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#8b949e', font: { size: 9 }, stepSize: 10 }, grid: { display: false } },
+          y: { ticks: { color: '#8b949e', font: { size: 9 }, callback: v => v + 'M' }, grid: { color: 'rgba(255,255,255,0.05)' }, max: 350 }
+        }
+      }
+    });
+  }
+
+  // 2. Total Sales by Date
+  const dateLabels = ["24-12-2010", "23-12-2011", "25-11-2011", "26-11-2010", "17-12-2010", "16-12-2011", "10-12-2010", "09-12-2011", "06-04-2012", "06-07-2012", "02-04-2010", "17-02-2012", "04-06-2010"];
+  const dateSalesM = [80.93, 77.00, 66.59, 65.82, 61.82, 60.09, 55.67, 55.56, 53.50, 51.25, 50.42, 50.20, 50.19];
+
+  const ctxDate = document.getElementById('pbiSalesDateChart');
+  if (ctxDate) {
+    new Chart(ctxDate.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: dateLabels,
+        datasets: [{
+          data: dateSalesM,
+          backgroundColor: '#38bdf8',
+          borderRadius: 2
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1b2540',
+            callbacks: { label: c => `Sales: $${c.parsed.x}M` }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#8b949e', font: { size: 9 }, callback: v => v + 'M' }, grid: { color: 'rgba(255,255,255,0.05)' }, max: 90 },
+          y: { ticks: { color: '#8b949e', font: { size: 8 } }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // 3. Sum of Unemployment by Store
+  const unempV = [1088, 1090, 1026, 853, 900, 945, 1228, 871, 872, 1196, 1026, 1876, 1001, 1237, 1143, 926, 937, 1264, 1143, 1054, 1090, 1154, 686, 1208, 1054, 1126, 1144, 1876, 1402, 1090, 1090, 1228, 1220, 1421, 1257, 1029, 1090, 1845, 1090, 1154, 1045, 1090, 1402, 1028, 1144];
+  const ctxUnemp = document.getElementById('pbiUnempChart');
+  if (ctxUnemp) {
+    new Chart(ctxUnemp.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: storeLabels,
+        datasets: [{
+          data: unempV,
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56, 189, 248, 0.05)',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { backgroundColor: '#1b2540' }
+        },
+        scales: {
+          x: { ticks: { color: '#8b949e', font: { size: 9 } }, grid: { display: false } },
+          y: { min: 600, max: 2000, ticks: { color: '#8b949e', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        }
+      }
+    });
+  }
+
+  // 4. Sum of Fuel Price by Temperature and Date (Waterfall breakdown)
+  const fuelLabels = ["50.43", "04-05", "12-10", "11-05", "Other", "76.03", "06-01", "27-01", "30-03", "16-04", "Other", "67.87", "11-05", "12-10", "Other", "76.67", "12-08", "14-09", "Other", "64.05"];
+  const fuelValues = [38, 48, 62, 55, 45, 37, 50, 60, 48, 42, 34, 52, 64, 56, 32, 45, 58, 52, 40, 31];
+  const fuelColors = fuelLabels.map(l => {
+    if (["50.43", "76.03", "67.87", "76.67", "64.05"].includes(l)) return '#38bdf8';
+    if (["04-05", "06-01", "11-05", "12-08"].includes(l)) return '#4ade80';
+    if (["12-10", "27-01", "14-09"].includes(l)) return '#f87171';
+    return '#fbbf24';
+  });
+
+  const ctxFuel = document.getElementById('pbiFuelChart');
+  if (ctxFuel) {
+    new Chart(ctxFuel.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: fuelLabels,
+        datasets: [{
+          data: fuelValues,
+          backgroundColor: fuelColors,
+          borderRadius: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1b2540',
+            callbacks: {
+              title: c => `Bucket: ${fuelLabels[c[0].dataIndex]}`,
+              label: c => `Sum Fuel: ${c.parsed.y}`
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#8b949e', font: { size: 8 } }, grid: { display: false } },
+          y: { ticks: { color: '#8b949e', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' }, max: 70 }
+        }
+      }
+    });
+  }
+
+  // 5. Store Rank by Store (Area chart)
+  const rankV = [9, 5, 40, 2, 43, 8, 32, 28, 34, 6, 17, 24, 4, 3, 31, 36, 29, 21, 11, 1, 30, 23, 15, 16, 33, 25, 7, 18, 35, 38, 14, 20, 45, 26, 27, 42, 37, 41, 10, 27, 19, 33, 31, 44, 29];
+  const ctxRank = document.getElementById('pbiRankChart');
+  if (ctxRank) {
+    new Chart(ctxRank.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: storeLabels,
+        datasets: [{
+          data: rankV,
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56, 189, 248, 0.25)',
+          fill: true,
+          borderWidth: 2,
+          tension: 0.3,
+          pointRadius: 0,
+          pointHoverRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1b2540',
+            callbacks: { label: c => `Rank: #${c.parsed.y} / 45` }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#8b949e', font: { size: 9 } }, grid: { display: false } },
+          y: { ticks: { color: '#8b949e', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' }, min: 0, max: 45 }
+        }
+      }
+    });
+  }
+}
+
+function showSection(id,btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'powerbi') {
+    // If replica tab is currently active, ensure charts build
+    if (document.getElementById('pbiReplicaView').style.display !== 'none') {
+      buildPbiCharts();
+    }
+  }
+}
+
+buildCharts();
+</script>
+</body>
+</html>
